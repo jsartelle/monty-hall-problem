@@ -5,7 +5,7 @@
 	interface GameRecord {
 		carIndex: number
 		firstPick: number
-		openedDoor: number
+		revealedDoor: number
 		secondPick: number
 	}
 	const STORAGE_KEY = 'montyhall_records'
@@ -48,7 +48,7 @@
 
 	let carIndex = 0
 	let firstPick: number | null = null
-	let openedDoor: number | null = null
+	let revealedDoor: number | null = null
 	let secondPick: number | null = null
 	let gameOver = false
 	let instructions = ''
@@ -56,7 +56,7 @@
 	function startGame() {
 		carIndex = pickRandomDoor()
 		firstPick = null
-		openedDoor = null
+		revealedDoor = null
 		secondPick = null
 		gameOver = false
 		instructions = 'Pick a door!'
@@ -72,14 +72,14 @@
 		if (firstPick === null) {
 			firstPick = index
 
-			while (openedDoor === null) {
+			while (revealedDoor === null) {
 				// Reveal a door that isn't the one you picked, or the one with the car
 				const rand = pickRandomDoor()
-				if (rand !== firstPick && rand !== carIndex) openedDoor = rand
+				if (rand !== firstPick && rand !== carIndex) revealedDoor = rand
 			}
 
 			instructions = `You picked door #${firstPick + 1}! Behind door #${
-				openedDoor! + 1
+				revealedDoor! + 1
 			} is a goat.\nStick with your choice, or change doors?`
 		} else if (secondPick === null) {
 			secondPick = index
@@ -104,7 +104,7 @@
 		records.push({
 			carIndex,
 			firstPick: firstPick!,
-			openedDoor: openedDoor!,
+			revealedDoor: revealedDoor!,
 			secondPick: secondPick!,
 		})
 		records = records
@@ -152,7 +152,7 @@
 				<Door
 					index={i}
 					isCar={i === carIndex}
-					revealed={gameOver || openedDoor === i}
+					revealed={gameOver || revealedDoor === i}
 					{cheatMode}
 					on:click={() => doorClicked(i)}
 				/>
@@ -161,7 +161,7 @@
 
 		{#if cheatMode}
 			<code>
-				carIndex: {carIndex}, firstPick: {firstPick}, openedDoor: {openedDoor}, secondPick: {secondPick}
+				carIndex: {carIndex}, firstPick: {firstPick}, revealedDoor: {revealedDoor}, secondPick: {secondPick}
 			</code>
 		{/if}
 	</section>
@@ -190,18 +190,18 @@
 					<tr>
 						<th scope="col">#</th>
 						<th scope="col">First Pick</th>
-						<th scope="col">Opened</th>
+						<th scope="col">Revealed</th>
 						<th scope="col">Second Pick</th>
 						<th scope="col">Winning Door</th>
 						<th scope="col">Prize</th>
 					</tr>
 				</thead>
 				<tbody>
-					{#each records as { carIndex, firstPick, openedDoor, secondPick }, index}
+					{#each records as { carIndex, firstPick, revealedDoor, secondPick }, index}
 						<tr>
 							<th scope="row">{index + 1}</th>
 							<td>{firstPick + 1}</td>
-							<td>{openedDoor + 1}</td>
+							<td>{revealedDoor + 1}</td>
 							<td>{secondPick + 1}</td>
 							<td>{carIndex + 1}</td>
 							<td>{secondPick === carIndex ? '🚗' : '🐐'}</td>

@@ -15,6 +15,8 @@
 		records = JSON.parse(localStorage.getItem(STORAGE_KEY)!)
 	}
 
+	/* Setup */
+
 	let doorCount = 3
 	let cheatMode = false
 
@@ -41,6 +43,8 @@
 	function pickRandomDoor() {
 		return Math.floor(Math.random() * doorCount)
 	}
+
+	/* Game Loop */
 
 	let carIndex = 0
 	let firstPick: number | null = null
@@ -94,6 +98,8 @@
 		}
 	}
 
+	/* Records */
+
 	function updateRecords() {
 		records.push({
 			carIndex,
@@ -101,6 +107,7 @@
 			openedDoor: openedDoor!,
 			secondPick: secondPick!,
 		})
+		records = records
 		localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
 	}
 
@@ -111,6 +118,26 @@
 		}
 		records = []
 		localStorage.removeItem(STORAGE_KEY)
+	}
+
+	function formatPercent(divisor: number, dividend: number) {
+		const result = parseFloat(((divisor / dividend) * 100).toFixed(2))
+		return isNaN(result) ? 0 : result
+	}
+
+	let winCount: number
+	let changedCount: number
+	let changedWinCount: number
+	let unchangedCount: number
+	let unchangedWinCount: number
+	$: {
+		winCount = records.filter((record) => record.secondPick === record.carIndex).length
+		changedCount = records.filter((record) => record.firstPick !== record.secondPick).length
+		changedWinCount = records.filter(
+			(record) => record.secondPick === record.carIndex && record.firstPick !== record.secondPick,
+		).length
+		unchangedCount = records.length - changedCount
+		unchangedWinCount = winCount - changedWinCount
 	}
 </script>
 
@@ -140,6 +167,49 @@
 	</section>
 	<section>
 		<h1>Records</h1>
+		{#if records.length > 0}
+			<section>
+				<p>
+					Wins: {winCount}/{records.length} ({formatPercent(winCount, records.length)}%)
+				</p>
+				<p>
+					When you changed your answer you won {changedWinCount}/{changedCount} times. ({formatPercent(
+						changedWinCount,
+						changedCount,
+					)}%)
+				</p>
+				<p>
+					When you didn't change your answer you won {unchangedWinCount}/{unchangedCount} times. ({formatPercent(
+						unchangedWinCount,
+						unchangedCount,
+					)}%)
+				</p>
+			</section>
+			<table role="grid">
+				<thead>
+					<tr>
+						<th scope="col">#</th>
+						<th scope="col">First Pick</th>
+						<th scope="col">Opened</th>
+						<th scope="col">Second Pick</th>
+						<th scope="col">Winning Door</th>
+						<th scope="col">Prize</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each records as { carIndex, firstPick, openedDoor, secondPick }, index}
+						<tr>
+							<th scope="row">{index + 1}</th>
+							<td>{firstPick + 1}</td>
+							<td>{openedDoor + 1}</td>
+							<td>{secondPick + 1}</td>
+							<td>{carIndex + 1}</td>
+							<td>{secondPick === carIndex ? '🚗' : '🐐'}</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		{/if}
 		<div class="controls">
 			<button on:click={changeDoorCount}>Change Door Count</button>
 			<button on:click={() => resetRecords(false)}>Reset Records</button>
@@ -174,6 +244,10 @@
 		align-items: center;
 		flex-wrap: wrap;
 		gap: var(--spacing);
+
+		* {
+			flex-grow: 1;
+		}
 
 		button {
 			width: auto;

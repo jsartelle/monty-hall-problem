@@ -10,38 +10,43 @@
 	}
 	const STORAGE_KEY = 'montyhall_records'
 
-	let records: GameRecord[] = []
+	let gameInfo: {
+		doorCount: number
+		records: GameRecord[]
+	} = {
+		doorCount: 3,
+		records: [],
+	}
+	let cheatMode = false
+
 	if (browser && localStorage.getItem(STORAGE_KEY)) {
-		records = JSON.parse(localStorage.getItem(STORAGE_KEY)!)
+		gameInfo = JSON.parse(localStorage.getItem(STORAGE_KEY)!)
 	}
 
 	/* Setup */
 
-	let doorCount = 3
-	let cheatMode = false
-
 	function changeDoorCount() {
 		const answer = prompt(
 			'Enter a number between 3 and 100. Changing the door count will clear your records!',
-			String(doorCount),
+			String(gameInfo.doorCount),
 		)
 
 		if (answer === null || answer === '') return
 		const parsed = parseInt(answer)
 
 		if (isNaN(parsed)) return alert('Invalid door count!')
-		if (parsed < 3) return alert('Pick a number higher than 2!')
-		if (parsed > 100) return alert('Pick a lower number!')
-		if (parsed !== doorCount) {
-			doorCount = parsed
+		if (parsed < 3) return alert('Enter a number 3 or higher!')
+		if (parsed > 100) return alert('Enter a number 100 or lower!')
+		if (parsed !== gameInfo.doorCount) {
+			gameInfo.doorCount = parsed
 			resetRecords(true)
 			startGame()
 		}
 	}
 
 	/** Pick a random door index */
-	function pickRandomDoor() {
-		return Math.floor(Math.random() * doorCount)
+	function randomDoor() {
+		return Math.floor(Math.random() * gameInfo.doorCount)
 	}
 
 	/* Game Loop */
@@ -54,7 +59,7 @@
 	let instructions = ''
 
 	function startGame() {
-		carIndex = pickRandomDoor()
+		carIndex = randomDoor()
 		firstPick = null
 		revealedDoor = null
 		secondPick = null
@@ -64,6 +69,8 @@
 	startGame()
 
 	function doorClicked(index: number) {
+		document.querySelector('.instructions')?.scrollIntoView()
+
 		if (gameOver) {
 			startGame()
 			return
@@ -74,7 +81,7 @@
 
 			while (revealedDoor === null) {
 				// Reveal a door that isn't the one you picked, or the one with the car
-				const rand = pickRandomDoor()
+				const rand = randomDoor()
 				if (rand !== firstPick && rand !== carIndex) revealedDoor = rand
 			}
 
@@ -98,17 +105,40 @@
 		}
 	}
 
+	function autoPlay() {
+		const answer = prompt('How many rounds? (between 1 and 1000)')
+
+		if (answer === null || answer === '') return
+		const parsed = parseInt(answer)
+
+		if (isNaN(parsed)) return alert('Invalid number!')
+		if (parsed < 1) return alert('Enter a number 1 or higher!')
+		if (parsed > 1000) return alert('Enter a number 1000 or lower!')
+
+		for (let i = 0; i < parsed; i++) {
+			while (!gameOver) {
+				let door: number
+				// don't want to pick the one that's been revealed
+				do {
+					door = randomDoor()
+				} while (revealedDoor && door === revealedDoor)
+				doorClicked(door)
+			}
+			startGame()
+		}
+	}
+
 	/* Records */
 
 	function updateRecords() {
-		records.push({
+		gameInfo.records.push({
 			carIndex,
 			firstPick: firstPick!,
 			revealedDoor: revealedDoor!,
 			secondPick: secondPick!,
 		})
-		records = records
-		localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
+		gameInfo = gameInfo
+		localStorage.setItem(STORAGE_KEY, JSON.stringify(gameInfo))
 	}
 
 	function resetRecords(skipConfirm = false) {
@@ -116,8 +146,11 @@
 			const confirmed = confirm('Are you sure you want to delete all records?')
 			if (!confirmed) return
 		}
-		records = []
-		localStorage.removeItem(STORAGE_KEY)
+		gameInfo = {
+			doorCount: gameInfo.doorCount,
+			records: [],
+		}
+		localStorage.setItem(STORAGE_KEY, JSON.stringify(gameInfo))
 	}
 
 	function formatPercent(divisor: number, dividend: number) {
@@ -131,12 +164,14 @@
 	let unchangedCount: number
 	let unchangedWinCount: number
 	$: {
-		winCount = records.filter((record) => record.secondPick === record.carIndex).length
-		changedCount = records.filter((record) => record.firstPick !== record.secondPick).length
-		changedWinCount = records.filter(
+		winCount = gameInfo.records.filter((record) => record.secondPick === record.carIndex).length
+		changedCount = gameInfo.records.filter(
+			(record) => record.firstPick !== record.secondPick,
+		).length
+		changedWinCount = gameInfo.records.filter(
 			(record) => record.secondPick === record.carIndex && record.firstPick !== record.secondPick,
 		).length
-		unchangedCount = records.length - changedCount
+		unchangedCount = gameInfo.records.length - changedCount
 		unchangedWinCount = winCount - changedWinCount
 	}
 </script>
@@ -148,7 +183,7 @@
 		<p class="instructions">{instructions}</p>
 
 		<div class="doors">
-			{#each { length: doorCount } as _, i}
+			{#each { length: gameInfo.doorCount } as _, i}
 				<Door
 					index={i}
 					isCar={i === carIndex}
@@ -167,15 +202,12 @@
 	</section>
 	<section>
 		<h1>Records</h1>
-		{#if records.length > 0}
+		{#if gameInfo.records.length > 0}
 			<section>
 				<p>
-					Wins: {winCount}/{records.length} ({formatPercent(winCount, records.length)}%)
-				</p>
-				<p>
-					When you changed your answer you won {changedWinCount}/{changedCount} times. ({formatPercent(
-						changedWinCount,
-						changedCount,
+					Wins: {winCount}/{gameInfo.records.length} ({formatPercent(
+						winCount,
+						gameInfo.records.length,
 					)}%)
 				</p>
 				<p>
@@ -184,33 +216,42 @@
 						unchangedCount,
 					)}%)
 				</p>
+				<p>
+					When you changed your answer you won {changedWinCount}/{changedCount} times. ({formatPercent(
+						changedWinCount,
+						changedCount,
+					)}%)
+				</p>
 			</section>
-			<table role="grid">
-				<thead>
-					<tr>
-						<th scope="col">#</th>
-						<th scope="col">First Pick</th>
-						<th scope="col">Revealed</th>
-						<th scope="col">Second Pick</th>
-						<th scope="col">Winning Door</th>
-						<th scope="col">Prize</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each records as { carIndex, firstPick, revealedDoor, secondPick }, index}
+			<section class="records">
+				<table role="grid">
+					<thead>
 						<tr>
-							<th scope="row">{index + 1}</th>
-							<td>{firstPick + 1}</td>
-							<td>{revealedDoor + 1}</td>
-							<td>{secondPick + 1}</td>
-							<td>{carIndex + 1}</td>
-							<td>{secondPick === carIndex ? '🚗' : '🐐'}</td>
+							<th scope="col">#</th>
+							<th scope="col">First Pick</th>
+							<th scope="col">Revealed</th>
+							<th scope="col">Second Pick</th>
+							<th scope="col">Winning Door</th>
+							<th scope="col">Prize</th>
 						</tr>
-					{/each}
-				</tbody>
-			</table>
+					</thead>
+					<tbody>
+						{#each gameInfo.records as { carIndex, firstPick, revealedDoor, secondPick }, index}
+							<tr>
+								<th scope="row">{index + 1}</th>
+								<td>{firstPick + 1}</td>
+								<td>{revealedDoor + 1}</td>
+								<td>{secondPick + 1}</td>
+								<td>{carIndex + 1}</td>
+								<td>{secondPick === carIndex ? '🚗' : '🐐'}</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</section>
 		{/if}
 		<div class="controls">
+			<button on:click={autoPlay}>Auto Play</button>
 			<button on:click={changeDoorCount}>Change Door Count</button>
 			<button on:click={() => resetRecords(false)}>Reset Records</button>
 			{#if dev}
@@ -225,6 +266,7 @@
 
 <style lang="scss">
 	.instructions {
+		scroll-margin-top: var(--spacing);
 		padding: calc(var(--spacing) / 2);
 		white-space: pre-line;
 		text-align: center;
@@ -237,6 +279,11 @@
 		grid-template-columns: repeat(auto-fit, 100px);
 		grid-auto-rows: 200px;
 		justify-content: space-evenly;
+	}
+
+	.records {
+		max-height: 500px;
+		overflow-y: scroll;
 	}
 
 	.controls {
